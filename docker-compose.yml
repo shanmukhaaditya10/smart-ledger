@@ -16,5 +16,22 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Inside the compose network Postgres is reachable at host "postgres".
+      DATABASE_URL: "postgresql://ledger:ledger@postgres:5432/ledger?schema=public"
+      # Seed the demo user on boot. Set to "false" to start empty.
+      SEED: "true"
+      # Optional email (monthly summary). Leave unset to run without email.
+      # SMTP_URL: "smtp://user:pass@host:587"
+      # SMTP_FROM: "Smart Ledger <ledger@example.com>"
+    ports:
+      - "3000:3000"
+
 volumes:
   pgdata:

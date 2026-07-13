@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated Prisma client — not our source.
+    "src/generated/**",
   ]),
+  {
+    rules: {
+      // React Compiler advisory rules. We intentionally use fetch-on-mount and
+      // hydration-safe theme init (setState in an effect), which these flag.
+      // Keep them as warnings (optimization hints), not build-failing errors.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

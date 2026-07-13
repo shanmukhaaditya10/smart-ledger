@@ -1,0 +1,185 @@
+// Smart Mini-Ledger — Prisma schema
+//
+// Design invariants (see PROJECT_SPEC.md §2):
+//   - Money is stored as integer minor units (paise) via BigInt. Never floats.
+//   - The Entry table is an append-only, immutable ledger. "Delete"/"edit" is a
+//     new reversing entry (reversesEntryId), never an UPDATE/DELETE.
+//   - Balances / budget usage are DERIVED from Entry rows, never stored.
+//   - Recurring generation is idempotent via a unique dedupeKey.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  CASH
+  BANK
+  CARD
+  SAVINGS
+}
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum EntryType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum Cadence {
+  MONTHLY
+}
+
+enum NotificationKind {
+  BUDGET_80
+  BUDGET_100
+  MONTH_SUMMARY
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  accounts       Account[]
+  categories     Category[]
+  entries        Entry[]
+  budgets        Budget[]
+  recurringRules RecurringRule[]
+  notifications  Notification[]
+}
+
+model Account {
+  id     String      @id @default(cuid())
+  userId String
+  name   String
+  type   AccountType
+
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entriesFrom    Entry[] @relation("FromAccount")
+  entriesTo      Entry[] @relation("ToAccount")
+  rulesFrom      RecurringRule[] @relation("RuleFromAccount")
+  rulesTo        RecurringRule[] @relation("RuleToAccount")
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Category {
+  id     String       @id @default(cuid())
+  userId String
+  name   String
+  kind   CategoryKind
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries         Entry[]
+  categoryBudgets CategoryBudget[]
+  recurringRules  RecurringRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+/// The ledger. APPEND-ONLY. Rows are never updated or deleted.
+model Entry {
+  id              String    @id @default(cuid())
+  userId          String
+  type            EntryType
+  amountMinor     BigInt // always positive, integer paise
+  fromAccountId   String? // set for EXPENSE and TRANSFER
+  toAccountId     String? // set for INCOME and TRANSFER
+  categoryId      String? // null for TRANSFER
+  note            String?
+  occurredAt      DateTime // when the transaction happened (user-facing date)
+  createdAt       DateTime  @default(now())
+  reversesEntryId String? // set when this entry reverses another (corrections)
+  recurringRuleId String?
+  dedupeKey       String? // deterministic key for idempotent recurring generation
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount Account?       @relation("FromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount   Account?       @relation("ToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  category    Category?      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  reverses    Entry?         @relation("Reversal", fields: [reversesEntryId], references: [id], onDelete: SetNull)
+  reversedBy  Entry[]        @relation("Reversal")
+  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([dedupeKey])
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@index([categoryId])
+}
+
+model Budget {
+  id                 String @id @default(cuid())
+  userId             String
+  month              String // "YYYY-MM"
+  overallLimitMinor  BigInt
+  savingsTargetMinor BigInt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryBudgets CategoryBudget[]
+
+  @@unique([userId, month])
+  @@index([userId])
+}
+
+model CategoryBudget {
+  id         String @id @default(cuid())
+  budgetId   String
+  categoryId String
+  limitMinor BigInt
+
+  budget   Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, categoryId])
+}
+
+model RecurringRule {
+  id            String    @id @default(cuid())
+  userId        String
+  type          EntryType
+  amountMinor   BigInt
+  categoryId    String?
+  fromAccountId String?
+  toAccountId   String?
+  note          String?
+  cadence       Cadence   @default(MONTHLY)
+  dayOfMonth    Int // 1..28 (clamped)
+  startDate     DateTime
+  endDate       DateTime?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  fromAccount Account?  @relation("RuleFromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount   Account?  @relation("RuleToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  entries     Entry[]
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  kind      NotificationKind
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  dedupeKey String           @unique // e.g. "budget80:2026-07:food"
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
