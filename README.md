@@ -93,6 +93,28 @@ pnpm dev                    # http://localhost:3000
 `pnpm seed` again. The seed resets the demo user each run and uses a fixed random seed, so
 data is realistic *and* reproducible.
 
+### Option C — deploy to Vercel + Neon (a shareable link)
+
+The app is a standard Next.js app driven entirely by `DATABASE_URL`, so any hosted Postgres
+works. This project is deployed on **Vercel** with a **Neon** serverless Postgres.
+
+1. Create a Postgres database on [Neon](https://neon.tech). For an India audience, pick the
+   **Singapore (ap-southeast-1)** region and set Vercel's **Function Region** to Singapore too,
+   so the function↔DB round-trips stay local. Copy the connection string.
+2. Initialize the database once from your machine (build doesn't run migrations):
+   ```bash
+   DATABASE_URL="<neon-url>" pnpm exec prisma migrate deploy
+   DATABASE_URL="<neon-url>" pnpm seed
+   ```
+3. Import the repo on Vercel and set the `DATABASE_URL` env var to the Neon URL (Production +
+   Preview). The build runs `prisma generate && next build` automatically; API routes run on
+   the Node.js runtime, so the `pg` driver adapter connects to Neon over SSL with no code
+   change. Deploy → open the link → sign in with `test@gmail.com`.
+
+Notes: at demo traffic the direct Neon connection is fine; for real scale, point the app at
+Neon's **pooled** endpoint (`-pooler` host) and keep the direct one for migrations. The
+dynamic recurring rules materialize on first load, so the deployed showcase fills itself in.
+
 ### Scripts
 
 | Script | Purpose |
