@@ -66,7 +66,9 @@ Signing in as `test@gmail.com` loads **3 months** of realistic data. Things to l
   immutable ledger. Try the **Reverse** action on any normal row.
 - **Accounts** — Bank sits at exactly ₹40,000 (the sweep floor), Card is **negative** (real
   credit-card debt), Cash is funded by a monthly ATM-withdrawal transfer, Savings grows via
-  the sweep. Transfers never change net worth.
+  the sweep. Transfers never change net worth. Any account in the red shows a **Settle** button
+  that pays it off in full in one click — the amount is computed server-side from the live
+  balance, so it always clears to exactly ₹0.
 
 ### Option B — local dev
 

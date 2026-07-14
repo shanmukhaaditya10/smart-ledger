@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { CountUp } from "@/components/app/count-up";
 import { BudgetBar, usageColor } from "@/components/app/budget-bar";
 import { SavingsRing } from "@/components/app/savings-ring";
+import { SettleButton } from "@/components/app/settle-button";
 import { Progress } from "@/components/ui/progress";
 import { SpendDonut } from "@/components/charts/spend-donut";
 import { BudgetBars } from "@/components/charts/budget-bars";
@@ -105,10 +106,15 @@ export default function DashboardPage() {
                   </span>
                   <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">{a.name}</div>
-                    <div className={cn("text-lg font-semibold tabular", neg && "text-destructive")}>
+                    <div className={cn("whitespace-nowrap text-lg font-semibold tabular", neg && "text-destructive")}>
                       <CountUp minor={a.balanceMinor} />
                     </div>
                   </div>
+                  {neg && (
+                    <div className="ml-auto shrink-0">
+                      <SettleButton account={a} accounts={s.accounts} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
