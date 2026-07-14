@@ -75,10 +75,14 @@ export type NotificationDTO = {
 
 export type NotificationsDTO = { notifications: NotificationDTO[]; unreadCount: number };
 
+export type AmountMode = "FIXED" | "PAYOFF" | "SWEEP_SURPLUS";
+
 export type RecurringRuleDTO = {
   id: string;
   type: "INCOME" | "EXPENSE" | "TRANSFER";
+  amountMode: AmountMode;
   amountMinor: Minor;
+  thresholdMinor: Minor | null;
   note: string | null;
   dayOfMonth: number;
   startDate: string;

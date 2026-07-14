@@ -45,6 +45,26 @@ const rupeeStringToMinorNonNeg = z
     }
   });
 
+// Optional rupee amount → bigint paise or null (blank/absent → null).
+const rupeeStringToMinorOptional = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val, ctx) => {
+    if (val == null || val.trim() === "") return null;
+    try {
+      return parseRupeesToMinor(val);
+    } catch (e) {
+      ctx.addIssue({
+        code: "custom",
+        message: e instanceof Error ? e.message : "Invalid amount",
+      });
+      return z.NEVER;
+    }
+  });
+
+export const amountModeSchema = z.enum(["FIXED", "PAYOFF", "SWEEP_SURPLUS"]);
+
 export const monthKeySchema = z
   .string()
   .refine(isMonthKey, "Month must be in YYYY-MM format");
@@ -130,7 +150,9 @@ export const onboardingSchema = z.object({
 export const recurringRuleSchema = z
   .object({
     type: entryTypeSchema,
-    amount: rupeeStringToMinor,
+    amountMode: amountModeSchema.default("FIXED"),
+    amount: rupeeStringToMinorOptional, // required for FIXED; ignored for dynamic
+    threshold: rupeeStringToMinorOptional, // SWEEP_SURPLUS: balance to keep
     categoryId: z.string().cuid().optional().nullable(),
     fromAccountId: z.string().cuid().optional().nullable(),
     toAccountId: z.string().cuid().optional().nullable(),
@@ -141,12 +163,26 @@ export const recurringRuleSchema = z
     active: z.boolean().default(true),
   })
   .superRefine((data, ctx) => {
-    if (data.type === "INCOME" && !data.toAccountId)
-      ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Income needs a destination account" });
-    if (data.type === "EXPENSE" && !data.fromAccountId)
-      ctx.addIssue({ code: "custom", path: ["fromAccountId"], message: "Expense needs a source account" });
-    if (data.type === "TRANSFER" && (!data.fromAccountId || !data.toAccountId))
-      ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Transfer needs both accounts" });
+    if (data.amountMode === "FIXED") {
+      if (data.amount == null || data.amount <= 0n)
+        ctx.addIssue({ code: "custom", path: ["amount"], message: "Enter an amount greater than 0" });
+      if (data.type === "INCOME" && !data.toAccountId)
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Income needs a destination account" });
+      if (data.type === "EXPENSE" && !data.fromAccountId)
+        ctx.addIssue({ code: "custom", path: ["fromAccountId"], message: "Expense needs a source account" });
+      if (data.type === "TRANSFER" && (!data.fromAccountId || !data.toAccountId))
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Transfer needs both accounts" });
+    } else {
+      // Dynamic modes are always transfers between two distinct accounts.
+      if (!data.fromAccountId)
+        ctx.addIssue({ code: "custom", path: ["fromAccountId"], message: "Choose the account to pay from" });
+      if (!data.toAccountId)
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Choose the destination account" });
+      if (data.fromAccountId && data.toAccountId && data.fromAccountId === data.toAccountId)
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "The two accounts must differ" });
+      if (data.amountMode === "SWEEP_SURPLUS" && data.threshold == null)
+        ctx.addIssue({ code: "custom", path: ["threshold"], message: "Set the amount to keep (can be 0)" });
+    }
   });
 
 export type RecurringRuleInput = z.infer<typeof recurringRuleSchema>;

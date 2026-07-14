@@ -17,7 +17,9 @@ export async function PUT(request: NextRequest, ctx: RouteContext<"/api/recurrin
     const input = recurringRuleSchema.parse(await request.json());
     const rule = await updateRecurringRule(userId, id, {
       type: input.type,
+      amountMode: input.amountMode,
       amount: input.amount,
+      threshold: input.threshold,
       categoryId: input.categoryId ?? null,
       fromAccountId: input.fromAccountId ?? null,
       toAccountId: input.toAccountId ?? null,

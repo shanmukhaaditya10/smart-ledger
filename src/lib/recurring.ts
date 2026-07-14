@@ -6,7 +6,9 @@ import {
   type MonthKey,
 } from "@/lib/date";
 import { checkBudgets } from "@/lib/budget";
+import { getAccountBalanceAsOf } from "@/lib/ledger";
 import type { CreatedNotification } from "@/lib/entries";
+import type { RecurringRule } from "@/generated/prisma/client";
 
 /**
  * Idempotent recurring materializer (spec §7). NO cron. On demand, for each
@@ -14,6 +16,14 @@ import type { CreatedNotification } from "@/lib/entries";
  * up to `now`. Every generated entry gets a deterministic dedupeKey
  * `rule:{ruleId}:{YYYY-MM}`; the unique constraint on Entry.dedupeKey means
  * calling this twice can never double-insert.
+ *
+ * Dynamic amounts (PAYOFF / SWEEP_SURPLUS) are sized from the account's live
+ * balance AS OF the fire date, so the transfer reflects reality on payday and
+ * back-fills past months correctly. To make that deterministic we process rules
+ * in passes — FIXED first, then PAYOFF, then SWEEP — so that e.g. a salary
+ * (fixed income) is already posted before a "sweep my surplus to savings" rule
+ * reads the bank balance. If a computed amount is ≤ 0 (nothing owed / no
+ * surplus) we simply post nothing for that month.
  */
 
 export type RecurringRunResult = {
@@ -31,13 +41,50 @@ function dayFloor(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
+const MODE_PRIORITY: Record<string, number> = { FIXED: 0, PAYOFF: 1, SWEEP_SURPLUS: 2 };
+
+/**
+ * The amount this rule should transfer this month, or null to post nothing.
+ * FIXED → the stored amount. PAYOFF → whatever the destination account owes
+ * (its negative balance). SWEEP_SURPLUS → the source balance above the kept
+ * threshold. Both dynamic amounts are read as of `fireDate`.
+ */
+async function effectiveAmount(
+  userId: string,
+  rule: RecurringRule,
+  fireDate: Date,
+): Promise<bigint | null> {
+  if (rule.amountMode === "FIXED") {
+    return rule.amountMinor > 0n ? rule.amountMinor : null;
+  }
+
+  if (rule.amountMode === "PAYOFF") {
+    if (!rule.toAccountId) return null;
+    const balance = await getAccountBalanceAsOf(userId, rule.toAccountId, fireDate);
+    // Only pay off when the account is actually in the red.
+    return balance < 0n ? -balance : null;
+  }
+
+  if (rule.amountMode === "SWEEP_SURPLUS") {
+    if (!rule.fromAccountId) return null;
+    const balance = await getAccountBalanceAsOf(userId, rule.fromAccountId, fireDate);
+    const surplus = balance - (rule.thresholdMinor ?? 0n);
+    return surplus > 0n ? surplus : null;
+  }
+
+  return null;
+}
+
 export async function runRecurring(
   userId: string,
   now: Date = new Date(),
 ): Promise<RecurringRunResult> {
   const rules = await prisma.recurringRule.findMany({
     where: { userId, active: true },
+    orderBy: { createdAt: "asc" },
   });
+  // Stable sort into passes: FIXED, then PAYOFF, then SWEEP_SURPLUS.
+  rules.sort((a, b) => (MODE_PRIORITY[a.amountMode] ?? 0) - (MODE_PRIORITY[b.amountMode] ?? 0));
 
   const nowFloor = dayFloor(now);
   const createdEntryIds: string[] = [];
@@ -59,13 +106,16 @@ export async function runRecurring(
       if (fireFloor > nowFloor) continue;
       if (endFloor !== null && fireFloor > endFloor) continue;
 
+      const amount = await effectiveAmount(userId, rule, fireDate);
+      if (amount == null || amount <= 0n) continue; // nothing to post this month
+
       const dedupeKey = dedupeKeyFor(rule.id, month);
       try {
         const entry = await prisma.entry.create({
           data: {
             userId,
             type: rule.type,
-            amountMinor: rule.amountMinor,
+            amountMinor: amount,
             fromAccountId: rule.fromAccountId,
             toAccountId: rule.toAccountId,
             categoryId: rule.type === "TRANSFER" ? null : rule.categoryId,

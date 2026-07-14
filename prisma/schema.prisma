@@ -38,6 +38,19 @@ enum Cadence {
   MONTHLY
 }
 
+/// How a recurring rule decides the amount when it fires.
+///   FIXED         — a fixed amount typed up front (default; original behaviour).
+///   PAYOFF        — transfer exactly enough to bring the destination account to
+///                   ₹0 (clear its debt), computed from the live balance.
+///   SWEEP_SURPLUS — transfer everything above `thresholdMinor` from the source
+///                   account to the destination (e.g. keep ₹20k in Bank, rest to
+///                   Savings), computed from the live balance.
+enum AmountMode {
+  FIXED
+  PAYOFF
+  SWEEP_SURPLUS
+}
+
 enum NotificationKind {
   BUDGET_80
   BUDGET_100
@@ -146,15 +159,17 @@ model CategoryBudget {
 }
 
 model RecurringRule {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   userId        String
   type          EntryType
-  amountMinor   BigInt
+  amountMode    AmountMode @default(FIXED)
+  amountMinor   BigInt // the fixed amount (FIXED mode); 0 for dynamic modes
+  thresholdMinor BigInt?   // SWEEP_SURPLUS: the balance to keep in the source
   categoryId    String?
   fromAccountId String?
   toAccountId   String?
   note          String?
-  cadence       Cadence   @default(MONTHLY)
+  cadence       Cadence    @default(MONTHLY)
   dayOfMonth    Int // 1..28 (clamped)
   startDate     DateTime
   endDate       DateTime?

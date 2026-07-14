@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { EntryType } from "@/generated/prisma/enums";
+import type { EntryType, AmountMode } from "@/generated/prisma/enums";
 
 /**
  * CRUD for RecurringRule. Rules are configuration, not ledger entries, so they
@@ -9,7 +9,9 @@ import type { EntryType } from "@/generated/prisma/enums";
 
 export type RuleInput = {
   type: EntryType;
-  amount: bigint;
+  amountMode?: AmountMode; // default FIXED
+  amount: bigint | null; // required for FIXED, ignored for dynamic modes
+  threshold?: bigint | null; // SWEEP_SURPLUS: balance to keep in the source
   categoryId: string | null;
   fromAccountId: string | null;
   toAccountId: string | null;
@@ -21,13 +23,18 @@ export type RuleInput = {
 };
 
 function toData(userId: string, input: RuleInput) {
+  const mode: AmountMode = input.amountMode ?? "FIXED";
+  // Dynamic modes (payoff / sweep) are always transfers between two accounts.
+  const effectiveType: EntryType = mode === "FIXED" ? input.type : "TRANSFER";
   return {
     userId,
-    type: input.type,
-    amountMinor: input.amount,
-    categoryId: input.type === "TRANSFER" ? null : input.categoryId,
-    fromAccountId: input.type === "INCOME" ? null : input.fromAccountId,
-    toAccountId: input.type === "EXPENSE" ? null : input.toAccountId,
+    type: effectiveType,
+    amountMode: mode,
+    amountMinor: mode === "FIXED" ? input.amount ?? 0n : 0n,
+    thresholdMinor: mode === "SWEEP_SURPLUS" ? input.threshold ?? 0n : null,
+    categoryId: effectiveType === "TRANSFER" ? null : input.categoryId,
+    fromAccountId: effectiveType === "INCOME" ? null : input.fromAccountId,
+    toAccountId: effectiveType === "EXPENSE" ? null : input.toAccountId,
     note: input.note,
     dayOfMonth: input.dayOfMonth,
     startDate: input.startDate,

@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
     const input = recurringRuleSchema.parse(body);
     const rule = await createRecurringRule(userId, {
       type: input.type,
+      amountMode: input.amountMode,
       amount: input.amount,
+      threshold: input.threshold,
       categoryId: input.categoryId ?? null,
       fromAccountId: input.fromAccountId ?? null,
       toAccountId: input.toAccountId ?? null,

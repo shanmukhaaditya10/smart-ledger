@@ -30,6 +30,40 @@ export type AccountBalance = {
 };
 
 /**
+ * Balance of ONE account as of a given date (inclusive) — only entries with
+ * `occurredAt <= asOf` count. Used by dynamic recurring rules (payoff / sweep)
+ * to size a transfer from the account's live balance on the day it fires,
+ * deterministically and correctly even when back-filling past months.
+ */
+export async function getAccountBalanceAsOf(
+  userId: string,
+  accountId: string,
+  asOf: Date,
+): Promise<bigint> {
+  const entries = await prisma.entry.findMany({
+    where: {
+      userId,
+      occurredAt: { lte: asOf },
+      OR: [{ fromAccountId: accountId }, { toAccountId: accountId }],
+    },
+    select: {
+      amountMinor: true,
+      fromAccountId: true,
+      toAccountId: true,
+      reversesEntryId: true,
+    },
+  });
+
+  let balance = 0n;
+  for (const e of entries) {
+    const amt = e.amountMinor * sign(e.reversesEntryId);
+    if (e.toAccountId === accountId) balance += amt;
+    if (e.fromAccountId === accountId) balance -= amt;
+  }
+  return balance;
+}
+
+/**
  * Balance per account = Σ credits − Σ debits, with reversals negated.
  *   credits: INCOME.toAccount, TRANSFER.toAccount
  *   debits:  EXPENSE.fromAccount, TRANSFER.fromAccount

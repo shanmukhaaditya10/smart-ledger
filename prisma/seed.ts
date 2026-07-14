@@ -130,6 +130,41 @@ async function main() {
     },
   });
 
+  // Two smart (dynamic-amount) rules, seeded INACTIVE so they showcase the
+  // feature without altering the demo balances. Toggle them on + "Run now" to
+  // watch them compute from live balances.
+  await prisma.recurringRule.create({
+    data: {
+      userId: user.id,
+      type: "TRANSFER",
+      amountMode: "PAYOFF",
+      amountMinor: 0n,
+      fromAccountId: acc("Bank").id,
+      toAccountId: acc("Card").id,
+      note: "Clear card on payday",
+      cadence: "MONTHLY",
+      dayOfMonth: 1,
+      startDate: dayInMonth(months[0], 1),
+      active: false,
+    },
+  });
+  await prisma.recurringRule.create({
+    data: {
+      userId: user.id,
+      type: "TRANSFER",
+      amountMode: "SWEEP_SURPLUS",
+      amountMinor: 0n,
+      thresholdMinor: parseRupeesToMinor("50000"),
+      fromAccountId: acc("Bank").id,
+      toAccountId: acc("Savings").id,
+      note: "Sweep surplus to savings",
+      cadence: "MONTHLY",
+      dayOfMonth: 2,
+      startDate: dayInMonth(months[0], 2),
+      active: false,
+    },
+  });
+
   let entryCount = 0;
 
   for (const month of months) {
