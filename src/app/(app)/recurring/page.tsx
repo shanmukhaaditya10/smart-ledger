@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   Repeat,
   Plus,
-  Play,
   Pencil,
   Trash2,
   ArrowRight,
@@ -105,7 +104,6 @@ export default function RecurringPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<RecurringRuleDTO | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<RecurringRuleDTO | null>(null);
-  const [running, setRunning] = React.useState(false);
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
   const [deleting, setDeleting] = React.useState(false);
 
@@ -119,25 +117,6 @@ export default function RecurringPage() {
   function openEdit(rule: RecurringRuleDTO) {
     setEditing(rule);
     setDialogOpen(true);
-  }
-
-  async function runNow() {
-    setRunning(true);
-    try {
-      const res = await apiPost<{ createdCount: number }>("/api/recurring/run");
-      if (res.createdCount > 0) {
-        toast.success(
-          `Added ${res.createdCount} ${res.createdCount === 1 ? "entry" : "entries"}`,
-        );
-      } else {
-        toast.info("Nothing due");
-      }
-      revalidate();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to run rules");
-    } finally {
-      setRunning(false);
-    }
   }
 
   async function toggleActive(rule: RecurringRuleDTO, active: boolean) {
@@ -172,22 +151,12 @@ export default function RecurringPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Recurring rules"
-        subtitle="Automate monthly income, bills, and transfers. Amounts can be fixed, or computed from live balances (pay off a card, sweep surplus to savings). Runs are idempotent — at most one entry per rule per month."
+        subtitle="Automate monthly income, bills, and transfers — posted automatically as each month comes due. Amounts can be fixed, or computed from live balances (pay off a card, sweep surplus to savings)."
         actions={
-          <>
-            <Button variant="outline" onClick={runNow} disabled={running}>
-              {running ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Play className="size-4" />
-              )}
-              Run now
-            </Button>
-            <Button onClick={openCreate}>
-              <Plus className="size-4" />
-              New rule
-            </Button>
-          </>
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            New rule
+          </Button>
         }
       />
 

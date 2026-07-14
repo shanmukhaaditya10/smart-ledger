@@ -268,6 +268,14 @@ page in light/dark/mobile, asserting **zero console errors**) plus a scripted le
   change), turning O(rule age) into O(new months). The unique constraint stays as the
   correctness backstop; the cursor is purely the speed-up. See the
   `recurring_materializer_cursor` migration and [`lib/recurring.ts`](src/lib/recurring.ts).
+- **Double budget alerts on one expense (caught while demoing).** The AI wrote the threshold
+  check as two independent `if`s: `if (pct >= 80) …` and `if (pct >= 100) …`. Fine when you
+  cross them one at a time — but a single big expense that jumps a category from 32% straight
+  to 112% tripped *both*, so you got "you've used 80%" **and** "you're over 100%" for the same
+  category at the same instant. A human noticed the redundant pair while adding a transaction.
+  Fixed by firing only the **highest** threshold crossed per scope (`if (over) … else if
+  (warn) …`) — see [`lib/budget.ts`](src/lib/budget.ts). Crossing them at different times still
+  yields both alerts, as intended.
 
 ---
 

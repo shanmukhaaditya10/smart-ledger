@@ -28,22 +28,28 @@ function candidatesFor(
 ): Candidate[] {
   if (limit <= 0n) return [];
   const pct = usagePct(spent, limit);
-  const out: Candidate[] = [];
-  if (pct >= BUDGET_WARN_PCT) {
-    out.push({
-      kind: "BUDGET_80",
-      dedupeKey: `budget80:${month}:${scopeKey}`,
-      message: `You've used ${Math.round(pct)}% of your ${scopeLabel} budget (${formatINR(spent)} of ${formatINR(limit)}).`,
-    });
-  }
+  // Fire only the HIGHEST threshold crossed for a scope, so a single expense
+  // that jumps past both doesn't raise "80%" and "over 100%" at the same time.
+  // (Crossing them at different times still produces both — different dedupeKeys.)
   if (pct >= BUDGET_OVER_PCT) {
-    out.push({
-      kind: "BUDGET_100",
-      dedupeKey: `budget100:${month}:${scopeKey}`,
-      message: `You're over your ${scopeLabel} budget — ${formatINR(spent)} spent of ${formatINR(limit)}.`,
-    });
+    return [
+      {
+        kind: "BUDGET_100",
+        dedupeKey: `budget100:${month}:${scopeKey}`,
+        message: `You're over your ${scopeLabel} budget — ${formatINR(spent)} spent of ${formatINR(limit)}.`,
+      },
+    ];
   }
-  return out;
+  if (pct >= BUDGET_WARN_PCT) {
+    return [
+      {
+        kind: "BUDGET_80",
+        dedupeKey: `budget80:${month}:${scopeKey}`,
+        message: `You've used ${Math.round(pct)}% of your ${scopeLabel} budget (${formatINR(spent)} of ${formatINR(limit)}).`,
+      },
+    ];
+  }
+  return [];
 }
 
 /**
