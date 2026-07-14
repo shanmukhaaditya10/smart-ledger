@@ -60,7 +60,7 @@ export function NotificationBell() {
             </button>
           )}
         </div>
-        <div className="max-h-96 overflow-y-auto p-1">
+        <div className="flex max-h-96 flex-col gap-1 overflow-y-auto p-1.5">
           {items.length === 0 ? (
             <div className="px-3 py-8 text-center text-sm text-muted-foreground">
               You&apos;re all caught up.
