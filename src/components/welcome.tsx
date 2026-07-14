@@ -6,10 +6,10 @@ import { motion } from "framer-motion";
 import {
   Wallet,
   ShieldCheck,
-  Repeat,
-  Bell,
   ArrowRight,
   Layers,
+  Sparkles,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,12 @@ import { apiPost, type UserDTO } from "@/lib/client";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 
+// Mapped to how the Bytex Fresher Challenge says to stand out.
 const FEATURES = [
-  { icon: ShieldCheck, title: "Immutable ledger", desc: "Append-only, double-entry. Corrections are reversing entries — full audit trail." },
-  { icon: Layers, title: "Integer money", desc: "Every paisa stored as an integer. No floats, no drift, no rounding surprises." },
-  { icon: Bell, title: "Live budget alerts", desc: "Spend crosses 80% / 100% and the budget loop fires a deduped notification." },
-  { icon: Repeat, title: "Idempotent recurring", desc: "Netflix-style rules materialize at most once per month — safe to re-run." },
+  { icon: Sparkles, title: "The unique twist", desc: "Smart auto-transfers: pay off a card or sweep surplus to savings, sized from live balances." },
+  { icon: ShieldCheck, title: "Production polish", desc: "Integer-money, immutable double-entry, typed error handling — clean, structured code." },
+  { icon: Layers, title: "Edge cases handled", desc: "Balances derived from history; recurring is idempotent and never double-charges." },
+  { icon: Bot, title: "AI as co-pilot", desc: "Built fast with AI — the money bugs it introduced were caught and fixed by hand." },
 ];
 
 export function Welcome() {
@@ -73,14 +74,22 @@ export function Welcome() {
         </div>
 
         <div className="relative max-w-md">
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
+            className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+          >
+            <Sparkles className="size-3.5" /> Bytex Fresher Challenge · Take-home
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-4xl font-semibold leading-tight tracking-tight xl:text-5xl"
           >
-            Not a CRUD expense list.
-            <span className="block text-primary">A real ledger.</span>
+            The Smart Mini-Ledger.
+            <span className="block text-primary">Built beyond the AI scaffold.</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -88,8 +97,9 @@ export function Welcome() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mt-4 text-muted-foreground"
           >
-            Immutable, integer-money, double-entry — with balances derived from history,
-            a live budget-vs-actual loop, and recurring transactions that never double-count.
+            My submission for the Junior Full-Stack Engineer role — a full-stack financial
+            ledger that&apos;s immutable, integer-money and double-entry, with a creative twist
+            an AI wouldn&apos;t hand you out of the box.
           </motion.p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -109,7 +119,9 @@ export function Welcome() {
           </div>
         </div>
 
-        <div className="relative text-xs text-muted-foreground">Single-user demo · Rupees · No passwords</div>
+        <div className="relative text-xs text-muted-foreground">
+          Next.js · TypeScript · PostgreSQL · Prisma · Docker — see the README for the AI write-up
+        </div>
       </div>
 
       {/* Right: form */}
