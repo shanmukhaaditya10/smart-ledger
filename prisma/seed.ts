@@ -204,6 +204,7 @@ async function main() {
 
     // Groceries / food across several days (varied).
     for (const day of [3, 8, 14, 19, 24, 28]) {
+      if (dayInMonth(month, day) > now) continue; // don't seed the future
       await prisma.entry.create({
         data: {
           userId: user.id,
@@ -227,6 +228,7 @@ async function main() {
       ["Misc", 2500, 21],
     ];
     for (const [catName, base, day] of misc) {
+      if (dayInMonth(month, day) > now) continue; // don't seed the future
       await prisma.entry.create({
         data: {
           userId: user.id,
