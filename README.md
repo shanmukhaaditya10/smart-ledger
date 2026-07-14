@@ -167,6 +167,39 @@ leaking internals.
 
 ---
 
+## The unique twist (the part an AI scaffold won't hand you)
+
+The brief asks for a creative feature an AI wouldn't suggest out of the box. There are two,
+and they build on each other. Both are only possible *because* balances are derived from an
+immutable ledger — so any account's balance can be recomputed for any point in time.
+
+### 1. Idempotent recurring transactions
+
+Netflix-style rules ("₹649 on the 5th, every month") with **no cron and no scheduler**. On
+app load, a materializer generates any entries that are due but missing. The trick that makes
+it safe: every generated entry gets a deterministic key like `rule:{id}:2026-07` with a
+unique constraint, so running it twice — or after being offline for months — can never
+double-charge you. Miss three months? Next time you open the app, the three missing entries
+appear at once, each dated to the correct month.
+
+### 2. Smart auto-transfers — dynamic amounts (the standout)
+
+Normal recurring rules repeat a **fixed** number you typed once. These compute the amount
+from your **live balance** at the moment they fire:
+
+- **Pay off a card in full** — on payday, move *exactly what the card owes* from Bank to Card,
+  whatever that happens to be this month. If the card owes ₹17,812, it transfers ₹17,812 and
+  the card lands at ₹0. Spent more next month? It adjusts automatically.
+- **Sweep surplus to savings** — "keep ₹40,000 in Bank, move the rest to Savings each month."
+  If Bank holds ₹60,000 after salary, it sweeps ₹20,000; if it holds ₹45,000, it sweeps ₹5,000.
+
+An AI scaffold gives you fixed-amount repeats; "clear whatever I currently owe" needs the
+balance read *at fire time* and rules run in the right order (salary posts before the sweep
+reads the balance). Verified end-to-end: the payoff generated the exact debt, the sweep the
+exact surplus, net worth stayed invariant, and re-runs changed nothing.
+
+---
+
 ## AI section (required by the brief)
 
 **Tools used.** This project was built with an AI coding agent (Claude Code) driving the
@@ -200,6 +233,17 @@ page in light/dark/mobile, asserting **zero console errors**) plus a scripted le
   with a required driver adapter, a `prisma.config.ts`, and a generated client under
   `src/generated` — not the `@prisma/client` singleton patterns the model assumed. The repo's
   own guidance (read the bundled Next.js docs; heed Prisma's new conventions) beat memory.
+- **Recurring that redid all its work on every page load (caught in review).** The AI's
+  materializer was *correct* but quietly wasteful: on every run it walked **every month from a
+  rule's start date up to today** and tried to insert each one — the months that already
+  existed just bounced off the unique constraint. So a rule that had been running for 3 years
+  attempted ~36 pointless database inserts *every single time you opened the app* — cost that
+  grows with the rule's age, not with how much is actually new. A human reading the loop spotted
+  it. Fixed by giving each rule a `lastMaterializedMonth` cursor: a run now resumes from the
+  first unsettled month and only re-scans the current month (whose dynamic amount can still
+  change), turning O(rule age) into O(new months). The unique constraint stays as the
+  correctness backstop; the cursor is purely the speed-up. See the
+  `recurring_materializer_cursor` migration and [`lib/recurring.ts`](src/lib/recurring.ts).
 
 ---
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import {
+  addMonths,
   monthKeyOf,
   monthsBetween,
   ruleDateInMonth,
@@ -16,6 +17,12 @@ import type { RecurringRule } from "@/generated/prisma/client";
  * up to `now`. Every generated entry gets a deterministic dedupeKey
  * `rule:{ruleId}:{YYYY-MM}`; the unique constraint on Entry.dedupeKey means
  * calling this twice can never double-insert.
+ *
+ * Each rule carries a `lastMaterializedMonth` cursor so a run resumes from the
+ * first unsettled month instead of re-walking (and re-attempting inserts for)
+ * every month since the rule began — O(new months) instead of O(rule age). The
+ * dedupeKey unique constraint is still the correctness backstop; the cursor is
+ * purely an optimization on top of it.
  *
  * Dynamic amounts (PAYOFF / SWEEP_SURPLUS) are sized from the account's live
  * balance AS OF the fire date, so the transfer reflects reality on payday and
@@ -87,6 +94,7 @@ export async function runRecurring(
   rules.sort((a, b) => (MODE_PRIORITY[a.amountMode] ?? 0) - (MODE_PRIORITY[b.amountMode] ?? 0));
 
   const nowFloor = dayFloor(now);
+  const currentMonth = monthKeyOf(now);
   const createdEntryIds: string[] = [];
   const notifications: CreatedNotification[] = [];
 
@@ -94,10 +102,18 @@ export async function runRecurring(
     const startFloor = dayFloor(rule.startDate);
     const endFloor = rule.endDate ? dayFloor(rule.endDate) : null;
 
-    const firstMonth = monthKeyOf(rule.startDate);
-    const lastMonth = monthKeyOf(now);
+    const startMonth = monthKeyOf(rule.startDate);
+    // Resume from the month after the cursor (the last fully-settled month we
+    // already accounted for), never earlier than the rule's start. This avoids
+    // re-attempting inserts for every past month on every run. We ALWAYS
+    // re-scan the current month, because a dynamic (payoff/sweep) amount there
+    // can still change as the month's spending lands.
+    const resumeFrom = rule.lastMaterializedMonth
+      ? addMonths(rule.lastMaterializedMonth, 1)
+      : startMonth;
+    const firstMonth = resumeFrom > startMonth ? resumeFrom : startMonth;
 
-    for (const month of monthsBetween(firstMonth, lastMonth)) {
+    for (const month of monthsBetween(firstMonth, currentMonth)) {
       const fireDate = ruleDateInMonth(month, rule.dayOfMonth);
       const fireFloor = dayFloor(fireDate);
 
@@ -135,6 +151,18 @@ export async function runRecurring(
         // Already materialized this month → unique violation → skip. Idempotent.
         if (!isUniqueViolation(err)) throw err;
       }
+    }
+
+    // Advance the cursor to the last fully-elapsed month (everything before the
+    // current month is now settled for this rule). Forward-only, and only once a
+    // full month has elapsed since the rule started. The current month is left
+    // out of the cursor so it's always re-scanned next run.
+    const settled = addMonths(currentMonth, -1);
+    if (settled >= startMonth && settled > (rule.lastMaterializedMonth ?? "")) {
+      await prisma.recurringRule.update({
+        where: { id: rule.id },
+        data: { lastMaterializedMonth: settled },
+      });
     }
   }
 
