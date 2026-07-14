@@ -27,8 +27,9 @@ const FEATURES = [
 
 export function Welcome() {
   const router = useRouter();
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
+  // Pre-filled with the seeded demo account so it's one click to sign in.
+  const [name, setName] = React.useState("Test");
+  const [email, setEmail] = React.useState("test@gmail.com");
   const [submitting, setSubmitting] = React.useState(false);
 
   async function onSubmit(e: React.FormEvent) {
