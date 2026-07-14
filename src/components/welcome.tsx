@@ -136,7 +136,7 @@ export function Welcome() {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                placeholder="Rohini Rao"
+                placeholder="Test"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
@@ -147,7 +147,7 @@ export function Welcome() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="test@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
