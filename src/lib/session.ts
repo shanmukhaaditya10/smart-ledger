@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { USER_COOKIE } from "@/lib/constants";
+import { UnauthorizedError } from "@/lib/errors";
 
 /**
  * This app is single-user with no auth (per spec). We identify "the user" by an
@@ -24,11 +25,6 @@ export async function setCurrentUser(userId: string): Promise<void> {
   });
 }
 
-export async function clearCurrentUser(): Promise<void> {
-  const store = await cookies();
-  store.delete(USER_COOKIE);
-}
-
 /** Resolve the current user record, or null if the cookie is missing/stale. */
 export async function getCurrentUser() {
   const id = await getCurrentUserId();
@@ -40,9 +36,9 @@ export async function getCurrentUser() {
 /** Like getCurrentUser but throws — use inside handlers that require a user. */
 export async function requireUserId(): Promise<string> {
   const id = await getCurrentUserId();
-  if (!id) throw new Error("No current user");
+  if (!id) throw new UnauthorizedError("No current user");
   // ensure it still exists
   const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
-  if (!user) throw new Error("No current user");
+  if (!user) throw new UnauthorizedError("No current user");
   return user.id;
 }

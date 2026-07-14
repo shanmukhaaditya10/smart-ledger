@@ -38,19 +38,6 @@ export function parseRupeesToMinor(input: string): bigint {
   return whole * MINOR_PER_MAJOR + frac;
 }
 
-/**
- * Coerce a numeric input that is *already known to be an integer paise value*
- * (e.g. from a trusted config) into bigint, rejecting non-integers so a float
- * never sneaks in.
- */
-export function assertMinor(value: number | bigint): bigint {
-  if (typeof value === "bigint") return value;
-  if (!Number.isInteger(value)) {
-    throw new Error(`Expected integer minor units, got ${value}`);
-  }
-  return BigInt(value);
-}
-
 /** Split signed paise into { sign, rupees, paise } string parts. */
 function splitMinor(minor: bigint): { neg: boolean; rupees: string; paise: string } {
   const neg = minor < 0n;

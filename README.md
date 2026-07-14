@@ -159,9 +159,11 @@ backbone); deleting a `User` cascades to all their data.
 
 Route handlers under [`src/app/api`](src/app/api): `POST /api/user`, `GET/PUT
 /api/preferences`, `POST/GET /api/entries`, `POST /api/entries/:id/reverse`, `GET
-/api/summary`, `GET /api/notifications` + `POST /api/notifications/:id/read`, `POST/GET/PUT/
-PATCH/DELETE /api/recurring` + `POST /api/recurring/run`, and the stretch `POST
-/api/summary/email`. Every mutation is Zod-validated.
+/api/summary`, `GET /api/notifications` + `POST /api/notifications/:id/read`, and
+`POST/GET/PUT/PATCH/DELETE /api/recurring` + `POST /api/recurring/run`. Every mutation is
+Zod-validated, and errors map to typed HTTP statuses (400/401/404/409) via
+[`lib/errors.ts`](src/lib/errors.ts) — unexpected failures return a generic 500 without
+leaking internals.
 
 ---
 
@@ -204,9 +206,8 @@ page in light/dark/mobile, asserting **zero console errors**) plus a scripted le
 ## What I'd do next (production notes)
 
 - **Real auth** (NextAuth / Auth.js) + per-user data isolation instead of a single-user cookie.
-- **Scheduled monthly email** via a proper job runner (the summary + send logic already exists
-  at [`lib/report.ts`](src/lib/report.ts) / [`lib/email.ts`](src/lib/email.ts), env-gated and
-  triggerable at `POST /api/summary/email`); today it's manual by design.
+- **A test suite** for the money/ledger logic (unit tests on derivations + reversal invariants).
+- **SQL-based aggregation** for balances/spend once ledgers grow (today they're reduced in JS).
 - **Multi-currency** (store currency + minor-unit scale per amount).
 - **DB-level guards** for append-only (a trigger/`REVOKE UPDATE,DELETE` on `Entry`) to enforce
   immutability even outside the app.

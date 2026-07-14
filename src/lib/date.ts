@@ -76,13 +76,3 @@ export function monthsBetween(startKey: MonthKey, endKey: MonthKey): MonthKey[] 
   }
   return out;
 }
-
-/** Format a Date as a friendly UTC day, e.g. "14 Jul 2026". */
-export function formatDay(date: Date): string {
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}

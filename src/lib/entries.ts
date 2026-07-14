@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { CreateEntryInput } from "@/lib/validation";
 import { checkBudgets } from "@/lib/budget";
+import { NotFoundError, ConflictError } from "@/lib/errors";
 import type { NotificationKind } from "@/generated/prisma/enums";
 
 /**
@@ -18,14 +19,14 @@ async function assertOwnedAccounts(userId: string, ids: (string | null | undefin
     where: { userId, id: { in: wanted } },
   });
   if (found !== new Set(wanted).size) {
-    throw new Error("Account not found");
+    throw new NotFoundError("Account not found");
   }
 }
 
 async function assertOwnedCategory(userId: string, id: string | null | undefined) {
   if (!id) return;
   const found = await prisma.category.count({ where: { userId, id } });
-  if (found === 0) throw new Error("Category not found");
+  if (found === 0) throw new NotFoundError("Category not found");
 }
 
 export async function createEntry(userId: string, input: CreateEntryInput) {
@@ -66,16 +67,16 @@ export async function reverseEntry(userId: string, entryId: string) {
   const original = await prisma.entry.findFirst({
     where: { id: entryId, userId },
   });
-  if (!original) throw new Error("Entry not found");
+  if (!original) throw new NotFoundError("Entry not found");
   if (original.reversesEntryId) {
-    throw new Error("Cannot reverse a reversing entry");
+    throw new ConflictError("Cannot reverse a reversing entry");
   }
 
   const already = await prisma.entry.findFirst({
     where: { reversesEntryId: entryId },
     select: { id: true },
   });
-  if (already) throw new Error("Entry already reversed");
+  if (already) throw new ConflictError("Entry already reversed");
 
   const reversal = await prisma.entry.create({
     data: {

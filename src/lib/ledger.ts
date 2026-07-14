@@ -107,11 +107,6 @@ export async function getAccountBalances(userId: string): Promise<AccountBalance
   }));
 }
 
-export async function getNetWorth(userId: string): Promise<bigint> {
-  const balances = await getAccountBalances(userId);
-  return balances.reduce((sum, b) => sum + b.balanceMinor, 0n);
-}
-
 /** Map of categoryId -> spend (paise) for EXPENSE entries in the month. */
 export async function getCategorySpend(
   userId: string,

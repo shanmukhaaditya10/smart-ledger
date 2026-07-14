@@ -27,9 +27,6 @@ services:
       DATABASE_URL: "postgresql://ledger:ledger@postgres:5432/ledger?schema=public"
       # Seed the demo user on boot. Set to "false" to start empty.
       SEED: "true"
-      # Optional email (monthly summary). Leave unset to run without email.
-      # SMTP_URL: "smtp://user:pass@host:587"
-      # SMTP_FROM: "Smart Ledger <ledger@example.com>"
     ports:
       - "3000:3000"
 

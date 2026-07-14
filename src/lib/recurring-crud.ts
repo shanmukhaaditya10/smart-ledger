@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { NotFoundError } from "@/lib/errors";
 import type { EntryType, AmountMode } from "@/generated/prisma/enums";
 
 /**
@@ -52,7 +53,7 @@ export const upsertRecurringRule = createRecurringRule;
 
 export async function updateRecurringRule(userId: string, id: string, input: RuleInput) {
   const existing = await prisma.recurringRule.findFirst({ where: { id, userId } });
-  if (!existing) throw new Error("Rule not found");
+  if (!existing) throw new NotFoundError("Rule not found");
   return prisma.recurringRule.update({
     where: { id },
     data: toData(userId, input),
@@ -61,13 +62,13 @@ export async function updateRecurringRule(userId: string, id: string, input: Rul
 
 export async function setRuleActive(userId: string, id: string, active: boolean) {
   const existing = await prisma.recurringRule.findFirst({ where: { id, userId } });
-  if (!existing) throw new Error("Rule not found");
+  if (!existing) throw new NotFoundError("Rule not found");
   return prisma.recurringRule.update({ where: { id }, data: { active } });
 }
 
 export async function deleteRecurringRule(userId: string, id: string) {
   const existing = await prisma.recurringRule.findFirst({ where: { id, userId } });
-  if (!existing) throw new Error("Rule not found");
+  if (!existing) throw new NotFoundError("Rule not found");
   return prisma.$transaction(async (tx) => {
     // Detach already-generated (immutable) entries, then remove the rule.
     await tx.entry.updateMany({
