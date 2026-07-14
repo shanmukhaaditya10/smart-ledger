@@ -18,8 +18,8 @@ import { monthKeyOf, addMonths, monthRange, type MonthKey } from "../src/lib/dat
 // CONFIG — change these to seed a different reviewer profile.
 // ---------------------------------------------------------------------------
 const CONFIG = {
-  name: "Rohini Rao",
-  email: "demo@smartledger.app",
+  name: "Test",
+  email: "test@gmail.com",
   monthlySalary: "120000",
   overallBudget: "60000",
   savingsTarget: "300000",
@@ -32,8 +32,9 @@ const CONFIG = {
     Misc: "8000",
   } as Record<string, string>,
   netflix: "649",
-  randomSeed: 20260714,
-  monthsToSeed: 2, // previous month + current month
+  sweepKeepInBank: "40000", // dynamic rule: keep this in Bank, sweep the rest to Savings
+  randomSeed: 20260715,
+  monthsToSeed: 3, // last 3 months incl. current
 };
 
 const DEFAULT_ACCOUNTS = [
@@ -130,9 +131,13 @@ async function main() {
     },
   });
 
-  // Two smart (dynamic-amount) rules, seeded INACTIVE so they showcase the
-  // feature without altering the demo balances. Toggle them on + "Run now" to
-  // watch them compute from live balances.
+  // Two smart (dynamic-amount) rules, ACTIVE so they show up as real, working
+  // examples. The materializer (run on app load, or via `POST /api/recurring/run`
+  // in the seed's follow-up) fills in their transfers from live balances.
+  //   PAYOFF — on payday (day 1), clear whatever the Card owes from prior months
+  //            (this month's card spend accrues until next payday, so the Card
+  //            still shows a live balance).
+  //   SWEEP  — on day 2, move everything above `sweepKeepInBank` to Savings.
   await prisma.recurringRule.create({
     data: {
       userId: user.id,
@@ -141,11 +146,11 @@ async function main() {
       amountMinor: 0n,
       fromAccountId: acc("Bank").id,
       toAccountId: acc("Card").id,
-      note: "Clear card on payday",
+      note: "Clear credit card on payday",
       cadence: "MONTHLY",
       dayOfMonth: 1,
       startDate: dayInMonth(months[0], 1),
-      active: false,
+      active: true,
     },
   });
   await prisma.recurringRule.create({
@@ -154,14 +159,14 @@ async function main() {
       type: "TRANSFER",
       amountMode: "SWEEP_SURPLUS",
       amountMinor: 0n,
-      thresholdMinor: parseRupeesToMinor("50000"),
+      thresholdMinor: parseRupeesToMinor(CONFIG.sweepKeepInBank),
       fromAccountId: acc("Bank").id,
       toAccountId: acc("Savings").id,
-      note: "Sweep surplus to savings",
+      note: `Sweep Bank surplus over ₹${CONFIG.sweepKeepInBank} to Savings`,
       cadence: "MONTHLY",
       dayOfMonth: 2,
       startDate: dayInMonth(months[0], 2),
-      active: false,
+      active: true,
     },
   });
 
@@ -236,21 +241,22 @@ async function main() {
       entryCount++;
     }
 
-    // A couple of transfers to Savings (NOT expenses — net worth unchanged).
-    for (const [day, amount] of [[3, "20000"], [20, "15000"]] as [number, string][]) {
-      await prisma.entry.create({
-        data: {
-          userId: user.id,
-          type: "TRANSFER",
-          amountMinor: parseRupeesToMinor(amount),
-          fromAccountId: acc("Bank").id,
-          toAccountId: acc("Savings").id,
-          note: "Move to savings",
-          occurredAt: dayInMonth(month, day),
-        },
-      });
-      entryCount++;
-    }
+    // Fund the Cash wallet from Bank at the start of the month (ATM withdrawal),
+    // so cash spends draw down a real balance instead of going negative. Savings
+    // is fed by the SWEEP_SURPLUS rule, not a manual transfer, so it showcases
+    // that feature rather than duplicating it.
+    await prisma.entry.create({
+      data: {
+        userId: user.id,
+        type: "TRANSFER",
+        amountMinor: parseRupeesToMinor("12000"),
+        fromAccountId: acc("Bank").id,
+        toAccountId: acc("Cash").id,
+        note: "ATM withdrawal",
+        occurredAt: dayInMonth(month, 1),
+      },
+    });
+    entryCount++;
 
     // Netflix — already materialized, using the live materializer's dedupeKey
     // so `recurring/run` won't re-create it.
@@ -287,14 +293,49 @@ async function main() {
     });
   }
 
-  // Seed a couple of budget notifications for the current month so the bell is
-  // non-empty on first load (Entertainment tends to run hot in this profile).
+  // Reversal example (the "delete/edit" of an immutable ledger): an original
+  // expense plus a reversing entry that nets it back out. Showcases the reverse
+  // action + the "Reversed"/"Reversal" badges in the transactions list.
+  const original = await prisma.entry.create({
+    data: {
+      userId: user.id,
+      type: "EXPENSE",
+      amountMinor: parseRupeesToMinor("1499"),
+      fromAccountId: acc("Card").id,
+      categoryId: cat("Misc").id,
+      note: "Duplicate charge (refunded)",
+      occurredAt: dayInMonth(thisMonth, 9),
+    },
+  });
+  await prisma.entry.create({
+    data: {
+      userId: user.id,
+      type: "EXPENSE",
+      amountMinor: original.amountMinor,
+      fromAccountId: original.fromAccountId,
+      categoryId: original.categoryId,
+      note: "Reversal of: Duplicate charge (refunded)",
+      occurredAt: original.occurredAt,
+      reversesEntryId: original.id,
+    },
+  });
+  entryCount += 2;
+
+  // A couple of budget alerts so the notification bell is non-empty on first load.
   await prisma.notification.create({
     data: {
       userId: user.id,
       kind: "BUDGET_80",
       message: "You've used 80% of your Entertainment budget this month.",
       dedupeKey: `budget80:${thisMonth}:cat:${cat("Entertainment").id}`,
+    },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: user.id,
+      kind: "BUDGET_100",
+      message: "You're over your Food budget this month.",
+      dedupeKey: `budget100:${thisMonth}:cat:${cat("Food").id}`,
     },
   });
 

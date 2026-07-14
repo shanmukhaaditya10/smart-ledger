@@ -38,11 +38,35 @@ recurring transactions.
 docker compose up --build
 ```
 
-This starts Postgres, waits for it to be healthy, applies migrations, seeds a demo user
-(`demo@smartledger.app`), and serves the app. Then open **http://localhost:3000** and sign in
-with any name + the seeded email (or a brand-new email to start fresh).
+This starts Postgres, waits for it to be healthy, applies migrations, seeds a demo user, and
+serves the app. Then open **http://localhost:3000** and sign in with:
+
+> **Name:** `Test`  **Email:** `test@gmail.com`
+
+(or enter a brand-new email to start from an empty ledger and walk through onboarding).
 
 Start empty instead of seeded: set `SEED=false` in `docker-compose.yml`.
+
+### What's in the demo (so you can see every feature)
+
+Signing in as `test@gmail.com` loads **3 months** of realistic data. Things to look at:
+
+- **Dashboard** — net worth derived from the ledger, an overall budget bar, a savings-target
+  ring (~59% of ₹3,00,000), a spend-by-category donut, and a budget-vs-actual chart. Note the
+  **bell** shows 2 alerts (Food near its limit, Entertainment over 80%).
+- **Recurring** — three self-explanatory rules, all live:
+  - **Netflix subscription** — a plain *fixed* ₹649 every month.
+  - **Clear credit card on payday** — an *auto payoff*: on day 1 it moves *exactly what the
+    Card owes* from Bank, so the card gets zeroed each cycle (it still shows this month's
+    fresh spend). The amount is computed from the balance — the rule row shows "auto".
+  - **Sweep Bank surplus over ₹40,000 to Savings** — an *auto sweep*: keeps ₹40k in Bank and
+    moves the rest to Savings each month. This is what grows the savings ring.
+- **Transactions** — filter by month/type/category; every row is append-only. One entry is a
+  **reversal** (a "Duplicate charge (refunded)" that was reversed) — the "delete/edit" of an
+  immutable ledger. Try the **Reverse** action on any normal row.
+- **Accounts** — Bank sits at exactly ₹40,000 (the sweep floor), Card is **negative** (real
+  credit-card debt), Cash is funded by a monthly ATM-withdrawal transfer, Savings grows via
+  the sweep. Transfers never change net worth.
 
 ### Option B — local dev
 
