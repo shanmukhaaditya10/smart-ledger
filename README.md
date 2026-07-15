@@ -56,26 +56,29 @@ budget-vs-actual bar chart. Notification bell.
 
 ## What's in the demo (so you can see every feature)
 
-The live link (or a seeded local run) loads **3 months** of realistic data. Things to look at:
+The live link (or a seeded local run) loads **3 months** of realistic data.
 
-- **Dashboard** — net worth derived from the ledger, an overall budget bar, a savings-target
-ring (~59% of ₹3,00,000), a spend-by-category donut, and a budget-vs-actual chart. Note the
-**bell** shows 2 alerts (Food near its limit, Entertainment over 80%).
-- **Recurring** — three self-explanatory rules, all live:
-  - **Netflix subscription** — a plain *fixed* ₹649 every month.
-  - **Clear credit card on payday** — an *auto payoff*: on day 1 it moves *exactly what the
-  Card owes* from Bank, so the card gets zeroed each cycle (it still shows this month's
-  fresh spend). The amount is computed from the balance — the rule row shows "auto".
-  - **Sweep Bank surplus over ₹40,000 to Savings** — an *auto sweep*: keeps ₹40k in Bank and
-  moves the rest to Savings each month. This is what grows the savings ring.
-- **Transactions** — filter by month/type/category; every row is append-only. One entry is a
-**reversal** (a "Duplicate charge (refunded)" that was reversed) — the "delete/edit" of an
-immutable ledger. Try the **Reverse** action on any normal row.
-- **Accounts** — Bank sits at exactly ₹40,000 (the sweep floor), Card is **negative** (real
-credit-card debt), Cash is funded by a monthly ATM-withdrawal transfer, Savings grows via
-the sweep. Transfers never change net worth. Any account in the red shows a **Settle** button
-that pays it off in full in one click — the amount is computed server-side from the live
-balance, so it always clears to exactly ₹0.
+**Dashboard** — net worth *derived* from the ledger, an overall budget bar, a savings-target
+ring (~59% of ₹3,00,000), a spend-by-category donut and a budget-vs-actual chart. The **bell**
+carries budget alerts; any account in the red (here, Card) shows a one-click **Settle**.
+
+<img src="docs/screenshots/dashboard.png" alt="Dashboard — balances, budgets, savings ring and charts" width="760">
+
+**Recurring** — three live rules. A plain *fixed* Netflix charge, plus the two smart ones that
+size themselves from your live balance (they read **"auto · from balance"**): an **auto payoff**
+that clears the Card each payday, and an **auto sweep** that moves Bank surplus into Savings.
+
+<img src="docs/screenshots/recurring.png" alt="Recurring rules — fixed, auto-payoff and auto-sweep" width="760">
+
+**Transactions** — an append-only history you can filter by month / type / category. Nothing is
+ever edited or deleted: the "Duplicate charge (refunded)" entry was **reversed**, so both the
+original and its reversal sit in the list (struck through). Hit **Reverse** on any normal row.
+
+<img src="docs/screenshots/transactions.png" alt="Transactions — append-only ledger with a reversal pair" width="760">
+
+**Accounts** — Bank sits at the ₹40,000 sweep floor, Card is **negative** (real credit-card
+debt), Cash is funded by a monthly ATM-withdrawal transfer, and Savings grows via the sweep.
+Transfers never change net worth.
 
 ---
 
