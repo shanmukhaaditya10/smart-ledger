@@ -25,6 +25,12 @@ export async function setCurrentUser(userId: string): Promise<void> {
   });
 }
 
+/** Clear the session cookie ("log out"). The user's data is untouched. */
+export async function clearCurrentUser(): Promise<void> {
+  const store = await cookies();
+  store.delete(USER_COOKIE);
+}
+
 /** Resolve the current user record, or null if the cookie is missing/stale. */
 export async function getCurrentUser() {
   const id = await getCurrentUserId();

@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Wallet,
+  LogOut,
 } from "lucide-react";
 import { MonthProvider, useMonth } from "@/components/app/month-context";
 import { NotificationBell } from "@/components/app/notification-bell";
@@ -86,6 +87,37 @@ function useRecurringRunOnLoad() {
   }, []);
 }
 
+function LogoutButton({ className }: { className?: string }) {
+  const [loading, setLoading] = React.useState(false);
+
+  async function onLogout() {
+    setLoading(true);
+    try {
+      await apiPost("/api/logout");
+      // Full reload so the cleared session cookie is picked up and the root
+      // route re-renders the welcome/sign-in screen.
+      window.location.href = "/";
+    } catch {
+      toast.error("Couldn't log out");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={onLogout}
+      disabled={loading}
+      aria-label="Log out"
+      title="Log out"
+      className={className}
+    >
+      <LogOut className="size-4" />
+    </Button>
+  );
+}
+
 function Shell({ user, children }: { user: UserDTO; children: React.ReactNode }) {
   const pathname = usePathname();
   useRecurringRunOnLoad();
@@ -124,6 +156,7 @@ function Shell({ user, children }: { user: UserDTO; children: React.ReactNode })
             <div className="truncate text-sm font-medium">{user.name}</div>
             <div className="truncate text-xs text-muted-foreground">{user.email}</div>
           </div>
+          <LogoutButton className="shrink-0" />
         </div>
       </aside>
 
@@ -143,6 +176,7 @@ function Shell({ user, children }: { user: UserDTO; children: React.ReactNode })
             </Link>
             <NotificationBell />
             <ThemeToggle />
+            <LogoutButton className="md:hidden" />
           </div>
         </header>
 
