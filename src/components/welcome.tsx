@@ -171,12 +171,9 @@ export function Welcome() {
             </Button>
           </form>
 
-          <div className="mt-6 flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-            <span>
-              No real auth here — it&apos;s intentionally left out so the app stays one click
-              away to try. Sign-in just picks the single demo user. :)
-            </span>
+          <div className="mt-6 flex items-center gap-2.5 rounded-lg border border-border bg-muted/40 p-3.5 text-sm text-muted-foreground">
+            <ShieldCheck className="size-4 shrink-0 text-primary" />
+            <span>No login needed — auth is skipped to keep the demo one click away. :)</span>
           </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
